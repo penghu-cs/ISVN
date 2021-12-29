@@ -18,13 +18,22 @@ class Solver(object):
         (self.train_labeled_data, self.train_labeled_labels, self.train_unlabeled_data, self.train_unlabeled_labels, self.valid_data, self.valid_labels, self.test_data, self.test_labels, train_transforms, test_transforms, self.MAP) = data_loader.load_data(self.datasets, self.K, self.view)
         self.n_view = len(self.train_labeled_data)# if type(self.train_labeled_data) is list else 1
 
+        if len(self.train_labeled_labels[0].shape) == 1:
+            self.classes = np.unique(self.train_labeled_labels[0].reshape([-1]))
+            self.classes = self.classes[self.classes >= 0]
+            self.num_classes = len(self.classes)
+        else:
+            self.num_classes = self.train_labeled_labels[0].shape[1]
+        self.W = utils.getOrthW(self.num_classes, self.output_shape)
+
         if not config.CNN:
             self.train_labeled_data = [self.train_labeled_data[i].reshape([self.train_labeled_data[i].shape[0], -1]) for i in range(self.n_view)]
             self.train_unlabeled_data = [self.train_unlabeled_data[i].reshape([self.train_unlabeled_data[i].shape[0], -1]) for i in range(self.n_view)]
             self.valid_data = [self.valid_data[i].reshape([self.valid_data[i].shape[0], -1]) for i in range(self.n_view)]
             self.test_data = [self.test_data[i].reshape([self.test_data[i].shape[0], -1]) for i in range(self.n_view)]
 
-            max_value = [self.train_labeled_data[i].max() for i in range(self.n_view)]
+            max_value = [np.abs(self.train_labeled_data[i]).max() for i in range(self.n_view)]
+            # max_value = [max_value[i] if max_value[i] > 100 else 1 for i in range(self.n_view)]
             self.train_labeled_data = [self.train_labeled_data[i] / max_value[i] for i in range(self.n_view)]
             self.train_unlabeled_data = [self.train_unlabeled_data[i] / max_value[i] for i in range(self.n_view)]
             self.valid_data = [self.valid_data[i] / max_value[i] for i in range(self.n_view)]
@@ -45,11 +54,11 @@ class Solver(object):
 
                 valid_dataset = data_loader.NDataset(self.valid_data[v], self.valid_labels[v], transform=test_transforms[v])
                 self.valid_dataloaders.append(data.DataLoader(valid_dataset, batch_size=config.batch_size, shuffle=False, num_workers=num_workers, drop_last=False))
-                self.models.append(ISVN(config, self.train_labeled_dataloaders[v], self.train_unlabeled_dataloaders[v], self.valid_dataloaders[v], view))
+                self.models.append(ISVN(config, self.train_labeled_dataloaders[v], self.train_unlabeled_dataloaders[v], self.valid_dataloaders[v], view, self.W, self.classes))
             else:
                 test_dataset = data_loader.NDataset(self.test_data[v], self.test_labels[v], transform=test_transforms[v])
                 self.test_dataloaders.append(data.DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False, num_workers=num_workers, drop_last=False))
-                self.models.append(ISVN(config, self.test_dataloaders[v], None, None, view))
+                self.models.append(ISVN(config, self.test_dataloaders[v], None, None, view, self.W, self.classes))
 
     def getDevice(self, v):
         return self.args.gpu_id if self.args.gpu_id >= 0 else (v + 1) % torch.cuda.device_count()
