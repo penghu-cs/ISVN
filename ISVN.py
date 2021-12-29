@@ -9,7 +9,7 @@ import copy
 
 
 class ISVN(object):
-    def __init__(self, config, train_labeled_dataloader, train_unlabeled_dataloader, valid_dataloader, view):
+    def __init__(self, config, train_labeled_dataloader, train_unlabeled_dataloader, valid_dataloader, view, W, classes):
         self.args = config
         self.output_shape = config.output_shape
         self.seed = config.seed
@@ -20,12 +20,8 @@ class ISVN(object):
 
         self.view = view
         self.input_shape = self.train_labeled_dataloader.dataset.data.shape[1]
-        if len(self.train_labeled_dataloader.dataset.labels.shape) == 1:
-            self.classes = np.unique(self.train_labeled_dataloader.dataset.labels.reshape([-1]))
-            self.classes = self.classes[self.classes >= 0]
-            self.num_classes = len(self.classes)
-        else:
-            self.num_classes = self.train_labeled_dataloader.dataset.labels.shape[0].shape[1]
+        self.classes = classes
+        
 
         if len(self.train_labeled_dataloader.dataset.data.shape) > 2:
             c_in = self.train_labeled_dataloader.dataset.data.shape[-1] if len(self.train_labeled_dataloader.dataset.data.shape) == 4 else 1
@@ -43,13 +39,13 @@ class ISVN(object):
         self.batch_sizes = config.batch_size
 
         self.epochs = config.epochs
-        self.beta = config.beta
         self.alpha = config.alpha
+        self.beta = config.beta
         if isinstance(self.args.datasets, list):
-            self.checkpoint_file = '{}_checkpoint_O{}_K{}_B{}_A{}_T{}.pth.tar'.format(self.args.datasets[self.view], self.output_shape, self.args.K, self.beta, self.alpha, self.threshold)
+            self.checkpoint_file = '{}_checkpoint_O{}_K{}_B{}_A{}_T{}.pth.tar'.format(self.args.datasets[self.view], self.output_shape, self.args.K, self.alpha, self.beta, self.threshold)
         else:
-            self.checkpoint_file = '{}_checkpoint_V{}_O{}_K{}_B{}_A{}_T{}.pth.tar'.format(self.args.datasets, self.view, self.output_shape, self.args.K, self.beta, self.alpha, self.threshold)
-        self.W = utils.getOrthW(self.num_classes, self.output_shape)
+            self.checkpoint_file = '{}_checkpoint_V{}_O{}_K{}_B{}_A{}_T{}.pth.tar'.format(self.args.datasets, self.view, self.output_shape, self.args.K, self.alpha, self.beta, self.threshold)
+        self.W = W
 
     def to_var(self, x, cuda_id):
         """Converts numpy to variable."""
@@ -89,9 +85,9 @@ class ISVN(object):
             sim = (labels.float().mm(labels.float().t()) > 0).float()
             loss1 = ((1. + dist.double().exp()).log() - (sim * dist).float()).sum(1).mean().float()
             loss2 = l2(x.mm(W.t()), labels)
-            return self.beta * loss1 + (1 - self.beta) * loss2
+            return self.alpha * loss1 + (1 - self.alpha) * loss2
         else:
-            return (1 - self.beta) * l2(x, y) + self.beta * l2(np.dot(x, self.W.T), labels)
+            return (1 - self.alpha) * l2(x, y) + self.alpha * l2(np.dot(x, self.W.T), labels)
 
     def train_view(self, device):
         print('Start %d-th ISVN!' % self.view)
@@ -162,17 +158,17 @@ class ISVN(object):
 
                 labeled_c_loss = label_criterion(c_pred[0: x_l.shape[0]], train_y[0: x_l.shape[0]])
                 labeled_r_loss = ae_criterion(r_pred[0: x_l.shape[0]], r_data[0: x_l.shape[0]])
-                labeled_loss = (1 - self.beta) * labeled_c_loss + self.beta * labeled_r_loss
+                labeled_loss = (1 - self.alpha) * labeled_c_loss + self.alpha * labeled_r_loss
 
-                if self.alpha > 0 and has_unlabel:
+                if self.beta > 0 and has_unlabel:
                     with torch.no_grad():
                         pseudo_label = c_pred[x_l.shape[0]::]
                         pseudo_label_tmp = (pseudo_label / pseudo_label.max(1, keepdim=True)[0] > self.threshold).float()
                         pseudo_label = pseudo_label_tmp.detach()
                     unlabeled_c_loss = label_criterion(c_pred[x_l.shape[0]::], pseudo_label)
                     unlabeled_r_loss = ae_criterion(r_pred[x_l.shape[0]::], r_data[x_l.shape[0]::])
-                    unlabeled_loss = (1. - self.beta) * unlabeled_c_loss + self.beta * unlabeled_r_loss
-                    loss = labeled_loss + unlabeled_loss * self.alpha
+                    unlabeled_loss = (1. - self.alpha) * unlabeled_c_loss + self.alpha * unlabeled_r_loss
+                    loss = labeled_loss + unlabeled_loss * self.beta
                 else:
                     loss = labeled_loss
 
@@ -181,26 +177,20 @@ class ISVN(object):
                 optimizer.step()
 
                 mean_loss.append(loss.item())
-                mean_tr_c_loss.append(self.to_data(labeled_c_loss))
-                mean_tr_r_loss.append(self.to_data(labeled_r_loss))
+                mean_tr_c_loss.append(labeled_c_loss.item())
+                mean_tr_r_loss.append(labeled_r_loss.item())
                 utils.show_progressbar([batch_idx, batch_count], loss=(loss.item() if batch_idx < batch_count - 1 else np.mean(mean_loss)))
             tr_c_loss.append(np.mean(mean_tr_c_loss))
             tr_r_loss.append(np.mean(tr_r_loss))
             tr_loss.append(np.mean(mean_loss))
             self.adjust_learning_rate(optimizer, epoch + 1)
-
-            valid_pre, valid_labels = utils.predict(lambda x: self.Encoder(x)[-1].view([x.shape[0], -1]).mm(W), self.valid_dataloader, device=device)
-            valid_reconst_loss, _ = utils.predict(lambda x: ((self.Decoder(self.Encoder(x)[-1])[-1] - x).pow(2).sum(1) + 1e-20).sqrt(), self.valid_dataloader, device=device)
-            v_loss = (1 - self.beta) * label_criterion(torch.Tensor(valid_pre).cuda(), self.to_one_hot(valid_labels)).item() + self.beta * valid_reconst_loss.mean()
-            val_loss.append(v_loss)
-            if v_loss == min(val_loss):
-                utils.save_checkpoint({
-                    'epoch': epoch,
-                    'model': self.Encoder.state_dict(),
-                    'opt': self.args,
-                    'loss': np.array(losses)
-                }, filename=self.checkpoint_file, prefix=self.args.checkpoint)
-                best_model = copy.deepcopy(self.Encoder)
+            utils.save_checkpoint({
+                'epoch': epoch,
+                'model': self.Encoder.state_dict(),
+                'opt': self.args,
+                'loss': np.array(losses)
+            }, filename=self.checkpoint_file, prefix=self.args.checkpoint)
+            best_model = copy.deepcopy(self.Encoder)
         return best_model
 
     def eval(self, eval_dataloader, cuda_id):
