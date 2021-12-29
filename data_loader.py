@@ -47,7 +47,7 @@ def load_deep_features(data_name, K=400, view=0):
     if data_name == 'xmedianet':
         valid_len, MAP = 4000, 0
         split = 'img' if view == 0 else 'text'
-        path = './data/XMediaNet/xmedianet_deep_doc2vec_data.h5py'
+        path = '../datasets/XMediaNet/xmedianet_deep_doc2vec_data.h5py'
         with h5py.File(path, 'r') as h:
             data, labels = h['train_%s' % (split + 's_deep' if view == 0 else split)][()].astype('float32'), h['train_%ss_labels' % split][()].reshape([-1])
             valid_data, valid_labels = data[-valid_len::], labels[-valid_len::]
@@ -56,7 +56,7 @@ def load_deep_features(data_name, K=400, view=0):
     
     elif data_name == 'nus_wide':
         valid_len, MAP = 5000, 0
-        path = './data/NUS-WIDE/nus_wide_deep_doc2vec_data_42941.h5py'
+        path = '../datasets/NUS-WIDE/nus_wide_deep_doc2vec_data_42941.h5py'
         split = 'img' if view == 0 else 'text'
         with h5py.File(path, 'r') as h:
             data, labels = h['train_%s' % (split + 's_deep' if view == 0 else split)][()].astype('float32'), h['train_%ss_labels' % split][()].reshape([-1])
@@ -67,19 +67,19 @@ def load_deep_features(data_name, K=400, view=0):
     elif data_name == 'INRIA-Websearch':
         MAP = 0
         split = 'img' if view == 0 else 'txt'
-        data = sio.loadmat('./data/INRIA-Websearch/INRIA-Websearch.mat')
+        data = sio.loadmat('../datasets/INRIA-Websearch/INRIA-Websearch.mat')
         train_data, train_labels = data['tr_%s' % split].astype('float32'), data['tr_%s_lab' % split].reshape([-1])
         valid_data, valid_labels = data['val_%s' % split].astype('float32'), data['val_%s_lab' % split].reshape([-1])
         test_data, test_labels = data['te_%s' % split].astype('float32'), data['te_%s_lab' % split].reshape([-1])
 
     elif data_name.lower() == 'mnist':
         MAP = None
-        train_dataset = datasets.MNIST('./data/MNIST/', train=True, download=True)
+        train_dataset = datasets.MNIST('../datasets/MNIST_SVHN/MNIST/', train=True, download=True)
         data, labels = train_dataset.data.numpy(), train_dataset.train_labels.numpy()
         valid_data, valid_labels = data[-10000::], labels[-10000::]
         train_data, train_labels = data[0: -10000], labels[0: -10000]
 
-        test_dataset = datasets.MNIST('./data/MNIST/', train=False, download=True)
+        test_dataset = datasets.MNIST('../datasets/MNIST_SVHN/MNIST/', train=False, download=True)
         test_data, test_labels = test_dataset.data.numpy(), test_dataset.test_labels.numpy()
 
         train_transform = transforms.Compose([
@@ -104,12 +104,12 @@ def load_deep_features(data_name, K=400, view=0):
 
     elif data_name.lower() == 'svhn':
         MAP = None
-        train_dataset = datasets.SVHN('./data/SVHN/', split='train', download=True)
+        train_dataset = datasets.SVHN('../datasets/MNIST_SVHN/SVHN/', split='train', download=True)
         data, labels = train_dataset.data, train_dataset.labels
         valid_data, valid_labels = data[-10000::], labels[-10000::]
         train_data, train_labels = data[0: -10000], labels[0: -10000]
 
-        test_dataset = datasets.SVHN('./data/SVHN/', split='test', download=True)
+        test_dataset = datasets.SVHN('../datasets/MNIST_SVHN/SVHN/', split='test', download=True)
         test_data, test_labels = test_dataset.data, test_dataset.labels
 
         # inx = np.arange(train_data.shape[0])
@@ -135,5 +135,21 @@ def load_deep_features(data_name, K=400, view=0):
     
     inx = np.arange(train_data.shape[0])
     np.random.shuffle(inx)
-    train_labeled_data, train_labeled_labels, train_unlabeled_data, train_unlabeled_labels = train_data[inx[0: K]], train_labels[inx[0: K]], train_data[inx[K::]], train_labels[inx[K::]]
+
+
+    classes = np.unique(train_labels)
+    labeled_inx, unlabeled_inx = [], []
+    Kc = int(K // len(classes))
+    for c in classes:
+        inx = (c == train_labels).nonzero()[0]
+        np.random.shuffle(inx)
+        labeled_inx.append(inx[0: Kc])
+        unlabeled_inx.append(inx[Kc::])
+    labeled_inx = np.concatenate(labeled_inx)
+    unlabeled_inx = np.concatenate(unlabeled_inx)
+    np.random.shuffle(labeled_inx)
+    np.random.shuffle(unlabeled_inx)
+    inx = np.concatenate([labeled_inx, unlabeled_inx])
+
+    train_labeled_data, train_labeled_labels, train_unlabeled_data, train_unlabeled_labels = train_data[inx[0: K]], train_labels[inx[0: K]], train_data[inx[K::]], train_labels[inx[K::]] * 0 - 1
     return train_labeled_data, train_labeled_labels, train_unlabeled_data, train_unlabeled_labels, valid_data, valid_labels, test_data, test_labels, train_transform, test_transform, MAP
