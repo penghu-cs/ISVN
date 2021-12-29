@@ -6,13 +6,12 @@ In this article, we study two challenging problems in semisupervised cross-view 
 
 ## Framework
 <h4>Figure 1. Difference between (a) existing joint multiview learning and (b) our independent multiview learning. In brief, the traditional methods use all views to learn the common space. They are difficult to handle increasing views since their models are optimized depending on all views. Thus, they should retrain the whole model to handle new views, which is inefficient with abandoning the trained model. In contrast, our method independently trains the <i>k</i> view-specific models for the <i>k</i> new views, thus efficiently handling increasing views.</h4>
+<div align=center><img src="paper/Fig1.jpg" width="50%"></div>
 
-![DIFF](paper/Fig1.jpg)
 
 ***
 <h4>Figure 2. Pipeline of our ISVN for the 𝓲th view. All views could be separately projected into the common space without any interview constraints, and could easily and efficiently handle new views.</h4>
-
-![ISVN](paper/Fig2.jpg)
+<div align=center><img src="paper/Fig2.jpg" width="90%"></div>
 
 
 
