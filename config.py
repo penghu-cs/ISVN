@@ -13,9 +13,9 @@ parser.add_argument('--gpu_id', type=int, default=0)
 
 parser.add_argument('--batch_size', type=int, default=16) ## 64
 parser.add_argument('--output_shape', type=int, default=1024)
-parser.add_argument('--alpha', type=float, default=0.)
+parser.add_argument('--alpha', type=float, default=0.5)
 parser.add_argument('--threshold', type=float, default=0.7)  # MNIST_SVHN: 0.9 INRIA-Websearch 0.7
-parser.add_argument('--beta', type=float, default=0)  # 400: 8e-2 1000: 3e-2 2000: 2e-2 3000: 2e-2 4000: 2e-2
+parser.add_argument('--beta', type=float, default=1e-2)  # 400: 8e-2 1000: 3e-2 2000: 2e-2 3000: 2e-2 4000: 2e-2
 parser.add_argument('--view_id', type=int, default=1)
 parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--K', type=int, default=2000) # 400 1000 2000 3000 4000
