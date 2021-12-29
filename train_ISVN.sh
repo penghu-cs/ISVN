@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 output_shape=1024
-gama=1
 datasets="MNIST SVHN" #nus_wide xmedianet INRIA-Websearch MNIST SVHN
 batch_size=16
 alpha=0.5
