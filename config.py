@@ -1,6 +1,6 @@
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--lr', type=list, default=[2e-4, 1e-4, 2e-4, 2e-4, 2e-4])
+parser.add_argument('--lr', type=list, default=[2e-4, 2e-4, 2e-4, 2e-4, 2e-4])
 parser.add_argument('--beta1', type=float, default=0.5)
 parser.add_argument('--beta2', type=float, default=0.999)
 parser.add_argument('--seed', type=int, default=0)
