@@ -21,7 +21,7 @@ parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--K', type=int, default=2000) # 400 1000 2000 3000 4000
 parser.add_argument('--CNN', action='store_true', default=False)
 parser.add_argument('--multiprocessing', action='store_true', default=False)
-parser.add_argument('--datasets', nargs='+', help='<Required> Quantization bits', default='xmedianet') # nus_wide xmedianet INRIA-Websearch MNIST SVHN
+parser.add_argument('--datasets', nargs='+', help='<Required> Quantization bits', default='INRIA-Websearch') # nus_wide xmedianet INRIA-Websearch MNIST SVHN
 
 args = parser.parse_args()
 if len(args.datasets) == 1:
