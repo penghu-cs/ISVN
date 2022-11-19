@@ -57,10 +57,10 @@ If you find ISVN useful in your research, please consider citing:
   author={Hu, Peng and Peng, Xi and Zhu, Hongyuan and Zhen, Liangli and Lin, Jie and Yan, Huaibai and Peng, Dezhong},
   journal={IEEE Transactions on Cybernetics}, 
   title={Deep Semisupervised Multiview Learning With Increasing Views}, 
-  year={2021},
-  volume={},
-  number={},
-  pages={1-12},
+  year={2022},
+  volume={52},
+  number={12},
+  pages={12954-12965},
   doi={10.1109/TCYB.2021.3093626}}
 }
 ```
