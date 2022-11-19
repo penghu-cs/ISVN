@@ -53,7 +53,7 @@ python train_ISVN.py --mode eval --datasets $datasets --view -1 --output_shape $
 ## Citation
 If you find ISVN useful in your research, please consider citing:
 ```
-@inproceedings{hu2021ISVN,
+@inproceedings{hu2022ISVN,
   author={Hu, Peng and Peng, Xi and Zhu, Hongyuan and Zhen, Liangli and Lin, Jie and Yan, Huaibai and Peng, Dezhong},
   journal={IEEE Transactions on Cybernetics}, 
   title={Deep Semisupervised Multiview Learning With Increasing Views}, 
